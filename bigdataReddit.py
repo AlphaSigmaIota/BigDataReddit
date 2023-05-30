@@ -1,8 +1,13 @@
 # use praw library to access Reddit API
 import praw
+import datetime
+import json
+from confluent_kafka import Producer
 from praw.models import MoreComments
 
 import pandas as pd
+
+p = Producer({'bootstrap.servers': 'localhost:9092'})
 
 # set access id and secret to reddit app
 reddit = praw.Reddit(
@@ -13,38 +18,54 @@ reddit = praw.Reddit(
 )
 
 # keyword to search for
-keyword = "python"
+keyword = "*"
 # choose subreddit ('all' for all subreddits)
 subreddit = reddit.subreddit('all')
 
-# get posts
-posts = subreddit.search(keyword, sort='top', time_filter='all', limit=10)
-
 data = []
 
-for post in posts:
-    # extract data from posts
-    post_dict = {
-        'Titel': post.title,
-        #'Inhalt': post.selftext,
-        'Autor': post.author.name,
-        'Subreddit': post.subreddit.display_name,
-        'Anzahl der Kommentare': post.num_comments,
-        'Punktzahl': post.score
-    }
+# get posts
+params = {'limit': 100,
+          'sort': "new",
+          'time_filter': "hour"}
+while True:
+    posts = list(subreddit.search('*', params=params))
+    if not posts:
+        break
+    for submission in posts:
+        print(submission.title)
+        post_dict = {
+            'Titel': submission.title,
+            'Erstellt_UTC': submission.created_utc,
+            'Erstellt': datetime.datetime.fromtimestamp(submission.created_utc).isoformat(),
+            'Inhalt': submission.selftext
+        }
+
+        byte_like = json.dumps(post_dict).encode('utf-8')
+        p.produce('twitter_messages', byte_like)
+
+        # Hier die Kafka Nachricht
+        data.append(post_dict)
+
+    params['after'] = posts[-1].fullname
+    p.flush()
+
+        #'Autor': submission.author.name,
+        #'Subreddit': submission.subreddit.display_name,
+        #'Anzahl der Kommentare': submission.num_comments,
+        #'Punktzahl': submission.score
 
     # extract comments
-    comments = post.comments.list()
-    comment_texts = []
-    for comment in comments:
-        if not isinstance(comment, MoreComments):
-            comment_texts.append(comment.body)
-
+    # comments = post.comments.list()
+    # comment_texts = []
+    # for comment in comments:
+    #     if not isinstance(comment, MoreComments):
+    #         comment_texts.append(comment.body)
     data.append(post_dict)
 
 # create dataframes and save them as csv-files
 df_data = pd.DataFrame(data)
 df_data.to_csv('Data.csv',sep=';',encoding='utf-8', index=False)
 
-df_comments = pd.DataFrame(comment_texts)
-df_comments.to_csv('Comments.csv',sep=';',encoding='utf-8', index=False)
+# df_comments = pd.DataFrame(comment_texts)
+# df_comments.to_csv('Comments.csv',sep=';',encoding='utf-8', index=False)
