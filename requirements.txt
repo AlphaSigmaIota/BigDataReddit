@@ -2,3 +2,5 @@
 confluent_kafka
 praw
 pandas
+transformers
+tensorflow
