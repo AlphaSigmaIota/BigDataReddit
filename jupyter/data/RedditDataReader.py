@@ -27,11 +27,9 @@ data = []
 # get posts
 params = {'limit': 100,
           'sort': "new",
-          'time_filter': "hour"}
+          'time_filter': "year"}
 while True:
     posts = list(subreddit.search('*', params=params))
-    if not posts:
-       break
     for submission in posts:
         print(submission.title)
         post_dict = {
@@ -44,8 +42,9 @@ while True:
         byte_like = json.dumps(post_dict).encode('utf-8')
         p.produce('reddit_messages', byte_like)
 
-    params['after'] = posts[-1].fullname
-    p.flush()
+    if len(posts) != 0:
+        params['after'] = posts[-1].fullname
+        p.flush()
 
     time.sleep(15)
 
