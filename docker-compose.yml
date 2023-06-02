@@ -7,7 +7,7 @@ services:
     image: docker.io/bitnami/kafka:3.4
     container_name: kafka-broker
     ports:
-      - "9092:9092"
+      - 9092:9092
     volumes:
       - "kafka_data:/bitnami"
     environment:
@@ -22,7 +22,7 @@ services:
       - 9000:9000
     volumes:
       - hadoop_namenode:/hadoop/dfs/name
-      - ./hadoop:/opt/hadoop
+      - ./hadoop/data:/opt/hadoop
     environment:
       - CLUSTER_NAME=bigdata_cluster
       - CORE_CONF_fs_defaultFS=hdfs://namenode:9000
@@ -82,7 +82,7 @@ services:
       - HADOOP_CONF_DIR=/etc/hadoop
       - SPARK_HOME=/spark
     volumes:
-      - ./hadoop:/opt/hadoop
+      - ./hadoop/data:/opt/hadoop
     depends_on:
       - namenode
 
@@ -103,6 +103,8 @@ services:
         - "8888:8888"
       depends_on:
         - spark-master
+      volumes:
+        - ./jupyter/data:/home/jovyan/work
       environment:
         - "SPARK_MASTER=spark://spark-master:7077"
 
