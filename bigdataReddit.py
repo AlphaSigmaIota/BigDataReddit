@@ -30,8 +30,7 @@ params = {'limit': 100,
           'time_filter': "hour"}
 while True:
     posts = list(subreddit.search('*', params=params))
-    #if not posts:
-    #    break
+
     for submission in posts:
         print(submission.title)
         post_dict = {
