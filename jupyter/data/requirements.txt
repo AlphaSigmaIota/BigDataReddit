@@ -3,3 +3,4 @@ confluent_kafka
 praw
 pandas
 transformers
+torch

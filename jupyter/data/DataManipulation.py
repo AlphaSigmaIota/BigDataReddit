@@ -10,7 +10,7 @@ APP_NAME = "KafkaDataFetch"
 # Spark Session aufbauen (Netzwerk: local)
 spark = SparkSession.builder \
     .master("local[*]") \
-    .appName("KafkaListener") \
+    .appName(APP_NAME) \
     .config("spark.jars.packages", "org.apache.spark:spark-sql-kafka-0-10_2.12:3.2.1") \
     .getOrCreate()
 
@@ -35,8 +35,8 @@ def write_to_hadoop(df, epoch_id):
 df = spark \
     .readStream \
     .format("kafka") \
-    .option("kafkaConsumer.pollTimeoutMs", 60 * 60 * 1000) \
-    .option("kafka.bootstrap.servers", "localhost:9092") \
+    .option("kafkaConsumer.pollTimeoutMs", 60*60*1000) \
+    .option("kafka.bootstrap.servers", "kafka-broker:9092") \
     .option("startingOffsets", "earliest") \
     .option("subscribe", TOPIC) \
     .load()
