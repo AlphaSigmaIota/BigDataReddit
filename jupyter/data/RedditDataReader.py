@@ -17,34 +17,36 @@ reddit = praw.Reddit(
     redirect_uri='http://www.example.com/unused/redirect/uri'
 )
 
-# keyword to search for
-keyword = "*"
 # choose subreddit ('all' for all subreddits)
 subreddit = reddit.subreddit('all')
 
-data = []
-
 # get posts
-params = {'limit': 100,
-          'sort': "new",
-          'time_filter': "year"}
+processed_ids = []
+processed = False
+
 while True:
-    posts = list(subreddit.search('*', params=params))
+    posts = list(subreddit.new())
+
     for submission in posts:
-        print(submission.title)
-        post_dict = {
-            'Titel': submission.title,
-            'Erstellt_UTC': submission.created_utc,
-            'Erstellt': datetime.datetime.fromtimestamp(submission.created_utc).isoformat(),
-            'Inhalt': submission.selftext
-        }
+        if submission.id not in processed_ids:
+            print(submission.title)
+            post_dict = {
+                'Titel': submission.title,
+                'Erstellt_UTC': submission.created_utc,
+                'Erstellt': datetime.datetime.fromtimestamp(submission.created_utc).isoformat(),
+                'Subreddit': submission.subreddit.display_name,
+                'Inhalt': submission.selftext
+            }
+            processed_ids.append(submission.id)
+            processed = True
+        else:
+            processed = False
 
         byte_like = json.dumps(post_dict).encode('utf-8')
         p.produce('reddit_messages', byte_like)
 
-    if len(posts) != 0:
-        params['after'] = posts[-1].fullname
+    #only flush if new posts were submitted
+    if processed:
         p.flush()
 
-    time.sleep(15)
 

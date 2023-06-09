@@ -4,3 +4,6 @@ praw
 pandas
 transformers
 torch
+wordcloud
+nltk
+gensim
