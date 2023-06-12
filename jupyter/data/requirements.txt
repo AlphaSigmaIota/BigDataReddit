@@ -1,9 +1,9 @@
 
 confluent_kafka
+nltk
 praw
 pandas
 transformers
 torch
 wordcloud
-nltk
 gensim

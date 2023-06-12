@@ -1,11 +1,29 @@
-# Autoren AS & HS
-
+# Autor AS
 from pyspark.sql import SparkSession
-import datetime
+from pyspark.sql.functions import col
+from pyspark.sql import functions
+from pyspark.sql.types import StringType
+from pyspark.sql.functions import udf
+from pyspark.sql import functions as F
 
-# AS
+import datetime
+import json
+import re
+import nltk
+from nltk.tokenize import word_tokenize
+from nltk.corpus import stopwords
+
+# Laden der Ressourcen
+nltk.download('punkt')
+nltk.download('stopwords')
+
+# Konvertieren der Stoppwörter in eine Liste
+stopWords = list(stopwords.words('english'))
+
+# Konstanten
 TOPIC = "reddit_messages"
 APP_NAME = "KafkaDataFetch"
+DATA_ATTRIBUTES_FOR_CLEANUP = ["Titel", "Inhalt"]
 
 # Spark Session aufbauen (Netzwerk: local)
 spark = SparkSession.builder \
@@ -14,22 +32,72 @@ spark = SparkSession.builder \
     .config("spark.jars.packages", "org.apache.spark:spark-sql-kafka-0-10_2.12:3.2.1") \
     .getOrCreate()
 
-
-# HS
-# Code für die Datenverarbeitung bevor es ins HDFS gespeichert wird...
+# Datenmanipulationen vor dem Speichern
 def data_manipulation(df, epoch_id):
-    pass
+    new_df = df
 
+    # neues Dataframe mit den Werten erstellen und zurück liefern für die Persistierung
+    manipulate_text_udf = F.udf(manipulate_text, F.StringType())
+    new_df = new_df.withColumn("value", manipulate_text_udf(col("value")))
 
-# AS - Methode zum Schreiben der gelesenen Daten in das Hadoop-Verzeichnis "redidits"
+    return new_df
+
+# Textmanipulation für die Werte "Titel" und "Inhalt"
+def manipulate_text(value):
+    data = json.loads(value)
+
+    for data_attr in DATA_ATTRIBUTES_FOR_CLEANUP:
+        text = data[data_attr]
+        text = remove_whitespace(text)
+        text = remove_special_characters(text)
+        text = lower_case(text)
+        text = remove_links(text)
+        text = tokenize(text)
+        data[data_attr] = remove_stopwords(text)
+    return json.dumps(data)
+
+# Entfernen unnötiger Leerzeichen
+def remove_whitespace(text):
+    text = text.replace('\r', ' ')
+    return text.replace('\n', ' ')
+
+# Entfernen von Sonderzeichen
+def remove_special_characters(text):
+    return re.sub('[^a-zA-z0-9\s]', '', text)
+
+# Entfernen der Links
+def remove_links(text):
+    pattern = r"http\S+|www\S+"
+    return re.sub(pattern, "", text)
+
+# Alles in Kleinschreibung umwandeln
+def lower_case(text):
+    return text.lower()
+
+# ggf. tokenizen, aber nur wenn topic modelling etc. gemacht wird, nicht wenn Q&A bestehen bleibt
+def tokenize(text):
+    wordTokens = nltk.word_tokenize(text)
+    return " ".join([token for token in wordTokens])
+
+# Stoppwörter entferenn
+def remove_stopwords(text):
+    wordTokens = nltk.word_tokenize(text)
+    return " ".join([word for word in wordTokens if word not in stopWords])
+
+# Methode zum Schreiben der gelesenen Daten in das Hadoop-Verzeichnis "redidits"
 def write_to_hadoop(df, epoch_id):
-    data_manipulation(df, epoch_id)
-    # Speichern Sie das DataFrame als CSV in Hadoop.
+    df_raw = df
+    df_mani = data_manipulation(df, epoch_id)
+    
+    # Datumsstring für heutiges Datum (Start Datum des Jobs)
     date_str = datetime.datetime.now().strftime("%Y-%m-%d")
-    filename = f"hdfs://namenode:9000/reddits/data_{date_str}.csv"
+    # Speicherorte für raw Data und manipulierte Daten
+    fn_raw = f"hdfs://namenode:9000/reddits/data_{date_str}.csv"
+    fn_mani = f"hdfs://namenode:9000/reddits_manipulated/data_{date_str}.csv"
 
-    # Speichern Sie das DataFrame als CSV in Hadoop.
-    df.write.csv(filename, mode="append")
+    # Speichern der DataFrame als CSV in Hadoop.
+    df_raw.write.csv(fn_raw, mode="append")
+    df_mani.write.csv(fn_mani, mode="append")
 
 # Verbindung zum Kafka Topic für das Lesen der Daten:
 df = spark \
