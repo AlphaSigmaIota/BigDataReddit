@@ -30,7 +30,6 @@ services:
       - 9000:9000
     volumes:
       - hadoop_namenode:/hadoop/dfs/name
-      - ./hadoop/data:/opt/hadoop
     environment:
       - CLUSTER_NAME=bigdata_cluster
       - CORE_CONF_fs_defaultFS=hdfs://namenode:9000
@@ -64,8 +63,6 @@ services:
       - INIT_DAEMON_STEP=setup_spark
       - HADOOP_CONF_DIR=/etc/hadoop
       - SPARK_HOME=/spark
-    volumes:
-      - ./hadoop/data:/opt/hadoop
     depends_on:
       - namenode
 
@@ -81,18 +78,18 @@ services:
     environment:
       - "SPARK_MASTER=spark://spark-master:7077"
 
-# Jupyter Notebook als Schnittstelle zum Q&A System
+# Jupyter Notebook als Analysetool für die Daten
   jupyter-notebook:
-      image: jupyter/pyspark-notebook
-      container_name: jupyter
-      ports:
-        - "8888:8888"
-      depends_on:
-        - spark-master
-      volumes:
-        - ./jupyter/data:/home/jovyan/work
-      environment:
-        - "SPARK_MASTER=spark://spark-master:7077"
+    build: .
+    container_name: jupyter
+    ports:
+      - "8888:8888"
+    depends_on:
+      - spark-master
+    volumes:
+      - ./jupyter/data:/home/jovyan/work
+    environment:
+      - "SPARK_MASTER=spark://spark-master:7077"
 
 volumes:
   hadoop_namenode:
