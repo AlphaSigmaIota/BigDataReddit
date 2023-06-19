@@ -1,16 +1,13 @@
 # Autor AS
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col
-from pyspark.sql import functions
 from pyspark.sql.types import StringType
 from pyspark.sql.functions import udf
-from pyspark.sql import functions as F
 
 import datetime
 import json
 import re
 import nltk
-from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 
 # Laden der Ressourcen
@@ -40,7 +37,7 @@ def data_manipulation(df, epoch_id):
 
     # neues Dataframe mit den Werten erstellen und zurück liefern
     # für die Persistierung
-    manipulate_text_udf = F.udf(manipulate_text, F.StringType())
+    manipulate_text_udf = udf(manipulate_text, StringType())
     new_df = new_df.withColumn("value", manipulate_text_udf(col("value")))
 
     return new_df
@@ -126,7 +123,8 @@ if __name__ == "__main__":
 
     # Konvertierung der Ausagabe aus Kafka in einen String
     df = df.selectExpr("CAST(value AS STRING)")
-    # Verarbeitungsquery aufbauen und für jeden eingelesenen "batch" Kafka-Messages die Methode "write_to_hadoop" aufrufen
+    # Verarbeitungsquery aufbauen und für jeden eingelesenen "batch"
+    # Kafka-Messages die Methode "write_to_hadoop" aufrufen
     query = df.writeStream.foreachBatch(write_to_hadoop).start()
     # Solange auf Kafka hören, bis der Abbruch kommt.
     query.awaitTermination()
